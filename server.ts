@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 
@@ -727,17 +728,28 @@ app.post('/api/workflow', async (req, res) => {
 });
 
 
-// Vite middleware setup
+// Vite middleware & Static file serving setup
 async function startServer() {
-  if (process.env.NODE_ENV !== 'production') {
-    const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
+  const distPath = path.join(process.cwd(), 'dist');
+  const hasDistIndex = fs.existsSync(path.join(distPath, 'index.html'));
+  const isProductionMode = process.env.NODE_ENV === 'production' || (process.env.NODE_ENV !== 'development' && hasDistIndex);
+
+  if (!isProductionMode) {
+    try {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } catch (err) {
+      console.warn('Vite dev middleware could not start, using static dist directory fallback:', err);
+      app.use(express.static(distPath));
+      app.get('*', (req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+    }
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
