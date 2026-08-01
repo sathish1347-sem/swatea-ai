@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   MessageSquare,
   Search,
@@ -11,7 +11,9 @@ import {
   ShieldCheck,
   Zap,
   Sparkles,
-  Layers
+  Layers,
+  Menu,
+  X
 } from 'lucide-react';
 import { ModuleType } from '../types';
 
@@ -27,6 +29,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   language,
 }) => {
   const isTamil = language === 'ta';
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
   const MODULES: { id: ModuleType; title: string; subtitle: string; icon: React.FC<any>; badge?: string }[] = [
     {
@@ -89,82 +92,175 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   return (
-    <aside className="w-full lg:w-72 bg-slate-950 border-r border-slate-800/80 p-3 sm:p-4 flex flex-col justify-between shrink-0">
-      <div>
-        <div className="flex items-center justify-between px-3 py-2 mb-3 bg-slate-900/60 rounded-xl border border-slate-800/60">
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
-            <Layers className="w-4 h-4 text-amber-400" />
-            <span>{isTamil ? 'இயக்கத் தொகுதிகள்' : 'OS Core Modules'}</span>
+    <>
+      {/* Mobile Bar (< lg) */}
+      <div className="flex lg:hidden overflow-x-auto gap-2 p-2 bg-slate-950 border-b border-slate-800 shrink-0 scrollbar-none items-center touch-pan-x z-20">
+        <button
+          onClick={() => setMobileDrawerOpen(true)}
+          className="px-3 py-2 bg-slate-900 border border-slate-800 text-amber-400 font-bold rounded-xl flex items-center gap-1.5 text-xs shrink-0 min-h-[44px] active:scale-95 transition-all cursor-pointer"
+        >
+          <Menu className="w-4 h-4" />
+          <span>{isTamil ? 'அனைத்து மாடல்கள்' : 'Modules'}</span>
+        </button>
+
+        {MODULES.map((mod) => {
+          const Icon = mod.icon;
+          const isActive = activeModule === mod.id;
+          return (
+            <button
+              key={mod.id}
+              onClick={() => onSelectModule(mod.id)}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 min-h-[44px] cursor-pointer ${
+                isActive
+                  ? 'bg-gradient-to-r from-amber-500 to-rose-600 text-slate-950 shadow-md scale-100'
+                  : 'bg-slate-900 text-slate-300 border border-slate-800 hover:text-white'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              <span className="whitespace-nowrap">{mod.title}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Mobile Full Drawer Modal */}
+      {mobileDrawerOpen && (
+        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex flex-col p-4 lg:hidden">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center gap-2 text-white font-extrabold text-sm">
+              <Layers className="w-5 h-5 text-amber-400" />
+              <span>{isTamil ? 'இயக்கத் தொகுதிகள் (OS Core Modules)' : 'OS Core Modules'}</span>
+            </div>
+            <button
+              onClick={() => setMobileDrawerOpen(false)}
+              className="p-2 bg-slate-900 rounded-xl text-slate-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
-          <span className="text-[10px] font-mono text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-full">
-            v1.0
-          </span>
-        </div>
 
-        <nav className="space-y-1">
-          {MODULES.map((mod) => {
-            const Icon = mod.icon;
-            const isActive = activeModule === mod.id;
+          <div className="flex-1 overflow-y-auto space-y-2 py-4">
+            {MODULES.map((mod) => {
+              const Icon = mod.icon;
+              const isActive = activeModule === mod.id;
 
-            return (
-              <button
-                key={mod.id}
-                onClick={() => onSelectModule(mod.id)}
-                className={`w-full text-left p-3 rounded-xl transition-all flex items-start gap-3 group border ${
-                  isActive
-                    ? 'bg-gradient-to-r from-amber-500/15 to-rose-500/10 border-amber-500/40 text-white shadow-lg shadow-amber-950/20'
-                    : 'bg-slate-900/30 hover:bg-slate-900/80 border-slate-800/40 text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                <div
-                  className={`p-2 rounded-lg transition-colors ${
+              return (
+                <button
+                  key={mod.id}
+                  onClick={() => {
+                    onSelectModule(mod.id);
+                    setMobileDrawerOpen(false);
+                  }}
+                  className={`w-full text-left p-3.5 rounded-2xl transition-all flex items-start gap-3 border min-h-[48px] ${
                     isActive
-                      ? 'bg-gradient-to-tr from-amber-500 to-rose-600 text-white'
-                      : 'bg-slate-800/80 text-slate-400 group-hover:text-amber-400 group-hover:bg-slate-800'
+                      ? 'bg-gradient-to-r from-amber-500/20 to-rose-500/15 border-amber-500/50 text-white'
+                      : 'bg-slate-900/60 border-slate-800 text-slate-300'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className={`text-xs font-bold truncate ${isActive ? 'text-amber-300' : 'text-slate-200'}`}>
-                      {mod.title}
-                    </span>
-                    {mod.badge && (
-                      <span className="text-[9px] font-extrabold font-mono bg-rose-500/20 text-rose-300 border border-rose-500/30 px-1.5 py-0.2 rounded-md">
-                        {mod.badge}
-                      </span>
-                    )}
+                  <div
+                    className={`p-2 rounded-xl ${
+                      isActive ? 'bg-amber-500 text-slate-950 font-bold' : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
                   </div>
-                  <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                    {mod.subtitle}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-        </nav>
-      </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-sm text-slate-100">{mod.title}</span>
+                      {mod.badge && (
+                        <span className="text-[10px] font-extrabold font-mono bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2 py-0.5 rounded-md">
+                          {mod.badge}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5">{mod.subtitle}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-      {/* Footer Banner */}
-      <div className="mt-6 p-3 rounded-xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800/80 relative overflow-hidden">
-        <div className="flex items-center gap-2 mb-1.5">
-          <Zap className="w-4 h-4 text-amber-400 animate-bounce" />
-          <span className="text-xs font-bold text-slate-200">
-            {isTamil ? 'ஸ்வாதியா ஏஐ இன்ஜின்' : 'Swatea AI Engine'}
-          </span>
+      {/* Desktop Sidebar (lg:flex) */}
+      <aside className="hidden lg:flex w-72 bg-slate-950 border-r border-slate-800/80 p-4 flex-col justify-between shrink-0">
+        <div>
+          <div className="flex items-center justify-between px-3 py-2 mb-3 bg-slate-900/60 rounded-xl border border-slate-800/60">
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
+              <Layers className="w-4 h-4 text-amber-400" />
+              <span>{isTamil ? 'இயக்கத் தொகுதிகள்' : 'OS Core Modules'}</span>
+            </div>
+            <span className="text-[10px] font-mono text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-full">
+              v1.0
+            </span>
+          </div>
+
+          <nav className="space-y-1">
+            {MODULES.map((mod) => {
+              const Icon = mod.icon;
+              const isActive = activeModule === mod.id;
+
+              return (
+                <button
+                  key={mod.id}
+                  onClick={() => onSelectModule(mod.id)}
+                  className={`w-full text-left p-3 rounded-xl transition-all flex items-start gap-3 group border ${
+                    isActive
+                      ? 'bg-gradient-to-r from-amber-500/15 to-rose-500/10 border-amber-500/40 text-white shadow-lg shadow-amber-950/20'
+                      : 'bg-slate-900/30 hover:bg-slate-900/80 border-slate-800/40 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <div
+                    className={`p-2 rounded-lg transition-colors ${
+                      isActive
+                        ? 'bg-gradient-to-tr from-amber-500 to-rose-600 text-white'
+                        : 'bg-slate-800/80 text-slate-400 group-hover:text-amber-400 group-hover:bg-slate-800'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className={`text-xs font-bold truncate ${isActive ? 'text-amber-300' : 'text-slate-200'}`}>
+                        {mod.title}
+                      </span>
+                      {mod.badge && (
+                        <span className="text-[9px] font-extrabold font-mono bg-rose-500/20 text-rose-300 border border-rose-500/30 px-1.5 py-0.2 rounded-md">
+                          {mod.badge}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                      {mod.subtitle}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </nav>
         </div>
-        <p className="text-[11px] text-slate-400 leading-snug">
-          {isTamil
-            ? 'அனைத்து மாடல்களும் சர்வர் வழியே செயல்படுகின்றன.'
-            : 'Powered by server-side Gemini 3.6 Flash & 3.1 Pro models.'}
-        </p>
-        <div className="mt-2.5 flex items-center justify-between text-[10px] text-slate-500 font-mono">
-          <span>Tenant: Org_Alpha</span>
-          <span className="text-emerald-400 font-semibold">Ready</span>
+
+        {/* Footer Banner */}
+        <div className="mt-6 p-3 rounded-xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800/80 relative overflow-hidden">
+          <div className="flex items-center gap-2 mb-1.5">
+            <Zap className="w-4 h-4 text-amber-400 animate-bounce" />
+            <span className="text-xs font-bold text-slate-200">
+              {isTamil ? 'ஸ்வாதியா ஏஐ இன்ஜின்' : 'Swatea AI Engine'}
+            </span>
+          </div>
+          <p className="text-[11px] text-slate-400 leading-snug">
+            {isTamil
+              ? 'அனைத்து மாடல்களும் சர்வர் வழியே செயல்படுகின்றன.'
+              : 'Powered by server-side Gemini 3.6 Flash & 3.1 Pro models.'}
+          </p>
+          <div className="mt-2.5 flex items-center justify-between text-[10px] text-slate-500 font-mono">
+            <span>Tenant: Org_Alpha</span>
+            <span className="text-emerald-400 font-semibold">Ready</span>
+          </div>
         </div>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 };
+

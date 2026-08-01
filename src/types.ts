@@ -31,6 +31,8 @@ export interface ChatMessage {
   timestamp: string;
   persona?: string;
   sources?: { title: string; uri: string }[];
+  imageUrl?: string;
+  userImage?: string;
 }
 
 export interface ChatSession {

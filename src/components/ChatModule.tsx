@@ -20,7 +20,9 @@ import {
   Cpu,
   Compass,
   Plus,
-  Volume2
+  Volume2,
+  Image as ImageIcon,
+  Eye
 } from 'lucide-react';
 import { ChatMessage, LanguageCode } from '../types';
 
@@ -99,11 +101,12 @@ How can I empower your workflow today?
 
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [persona, setPersona] = useState<'general' | 'coder' | 'analyst' | 'workflow'>('general');
+  const [persona, setPersona] = useState<'general' | 'coder' | 'analyst' | 'workflow' | 'image'>('general');
   const [selectedModel, setSelectedModel] = useState<string>('gemini-3.6-flash');
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [attachedFile, setAttachedFile] = useState<{ name: string; content: string } | null>(null);
+  const [attachedFile, setAttachedFile] = useState<{ name: string; content: string; type?: string; isImage?: boolean } | null>(null);
   const [isListening, setIsListening] = useState(false);
+  const [previewModalImage, setPreviewModalImage] = useState<string | null>(null);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -163,23 +166,23 @@ How can I empower your workflow today?
 
   const starterPrompts = [
     {
+      icon: <ImageIcon className="w-5 h-5 text-rose-400" />,
+      title: isTamil ? '🎨 படம் வரைதல் (AI Image)' : '🎨 AI Image Generator',
+      prompt: isTamil ? 'வரைந்து தா: ஒரு அழகான தாமரை மலர் மற்றும் அமைதியான குளம்' : 'Generate an image of a serene lotus pond surrounded by glowing cyan crystals at dusk',
+    },
+    {
       icon: <Code2 className="w-5 h-5 text-sky-400" />,
-      title: isTamil ? 'REST API கோடிங்' : 'Express REST API',
+      title: isTamil ? '💻 REST API கோடிங்' : '💻 Express REST API',
       prompt: isTamil ? 'ஒரு Express + TypeScript REST API உருவாக்கு' : 'Create an Express + TypeScript REST API microservice',
     },
     {
-      icon: <FileSpreadsheet className="w-5 h-5 text-emerald-400" />,
-      title: isTamil ? 'ஆவண ஆய்வு' : 'Analyze Document',
-      prompt: isTamil ? 'நிறுவன ஒப்பந்த விதிகளைப் பகுப்பாய்வு செய்க' : 'Analyze key clauses in enterprise service level agreement',
-    },
-    {
       icon: <Globe className="w-5 h-5 text-amber-400" />,
-      title: isTamil ? 'ஆழமான தேடல்' : 'Deep Web Search',
+      title: isTamil ? '🌐 ஆழமான தேடல்' : '🌐 Deep Web Search',
       prompt: isTamil ? '2026 ஏஐ தொழில்நுட்ப மாற்றங்களை தேடித் தருக' : 'Summarize key enterprise AI architectural trends in 2026',
     },
     {
-      icon: <Zap className="w-5 h-5 text-rose-400" />,
-      title: isTamil ? 'தானியங்கி வொர்க்ஃப்ளோ' : 'Agent Workflow',
+      icon: <Zap className="w-5 h-5 text-emerald-400" />,
+      title: isTamil ? '⚡ தானியங்கி வொர்க்ஃப்ளோ' : '⚡ Agent Workflow',
       prompt: isTamil ? 'வாடிக்கையாளர் ஆதரவு தானியங்கி ஏஜென்ட் திட்டம் அமை' : 'Design an automated customer support agent workflow',
     },
   ];
@@ -188,12 +191,44 @@ How can I empower your workflow today?
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const isImg = file.type.startsWith('image/');
     const reader = new FileReader();
+
     reader.onload = (evt) => {
       const content = evt.target?.result as string;
-      setAttachedFile({ name: file.name, content });
+      setAttachedFile({
+        name: file.name,
+        content,
+        type: file.type,
+        isImage: isImg,
+      });
     };
-    reader.readAsText(file);
+
+    if (isImg) {
+      reader.readAsDataURL(file);
+    } else {
+      reader.readAsText(file);
+    }
+  };
+
+  const checkImageGenIntent = (text: string) => {
+    if (persona === 'image') return true;
+    const lower = text.toLowerCase();
+    return (
+      lower.startsWith('image:') ||
+      lower.startsWith('/image') ||
+      lower.includes('generate image') ||
+      lower.includes('create image') ||
+      lower.includes('draw a') ||
+      lower.includes('draw an') ||
+      lower.includes('picture of') ||
+      lower.includes('photo of') ||
+      lower.includes('படத்தை உருவாக்கு') ||
+      lower.includes('படம் வரை') ||
+      lower.includes('வரைந்து தா') ||
+      lower.includes('படம் உருவாக்கு') ||
+      lower.includes('வரையவும்')
+    );
   };
 
   const handleSend = async (e?: React.FormEvent, customPrompt?: string) => {
@@ -201,16 +236,20 @@ How can I empower your workflow today?
     const promptToSend = customPrompt || input;
     if (!promptToSend.trim() || loading) return;
 
+    const currentAttached = attachedFile;
+    const isImageGen = checkImageGenIntent(promptToSend);
+
     let fullPrompt = promptToSend;
-    if (attachedFile) {
-      fullPrompt = `[Attached File: ${attachedFile.name}]\n\nFile Content:\n${attachedFile.content}\n\nUser Question: ${promptToSend}`;
+    if (currentAttached && !currentAttached.isImage) {
+      fullPrompt = `[Attached File: ${currentAttached.name}]\n\nFile Content:\n${currentAttached.content}\n\nUser Question: ${promptToSend}`;
     }
 
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
-      content: promptToSend + (attachedFile ? ` 📎 [Attached: ${attachedFile.name}]` : ''),
+      content: promptToSend + (currentAttached ? ` 📎 [Attached: ${currentAttached.name}]` : ''),
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      userImage: currentAttached?.isImage ? currentAttached.content : undefined,
     };
 
     setMessages((prev) => [...prev, userMsg]);
@@ -219,33 +258,86 @@ How can I empower your workflow today?
     setLoading(true);
 
     try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: fullPrompt,
-          history: messages.map((m) => ({ role: m.role, content: m.content })),
+      if (isImageGen) {
+        // --- 1. AI Image Generation Route ---
+        const cleanPrompt = promptToSend.replace(/^(\/image|image:|வரைந்து தா:|படத்தை உருவாக்கு:)/i, '').trim();
+        const response = await fetch('/api/generate-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: cleanPrompt || promptToSend }),
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Image generation failed');
+        }
+
+        const botMsg: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: isTamil
+            ? `🎨 **ஸ்வாதியா ஏஐ படம் உருவாக்கப்பட்டது!**\n\nவினவல்: *"${cleanPrompt || promptToSend}"*`
+            : `🎨 **Swatea AI Image Generated Successfully!**\n\nPrompt: *"${cleanPrompt || promptToSend}"*`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          persona: 'image',
+          imageUrl: data.imageUrl,
+        };
+        setMessages((prev) => [...prev, botMsg]);
+      } else if (currentAttached?.isImage) {
+        // --- 2. Vision AI Analysis for Uploaded Images ---
+        const response = await fetch('/api/vision', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imageBase64: currentAttached.content,
+            mimeType: currentAttached.type || 'image/png',
+            prompt: promptToSend,
+          }),
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Vision analysis failed');
+        }
+
+        const botMsg: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: data.analysis,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          persona: 'analyst',
+        };
+        setMessages((prev) => [...prev, botMsg]);
+      } else {
+        // --- 3. Standard Text / Code / General Question Answering ---
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: fullPrompt,
+            history: messages.map((m) => ({ role: m.role, content: m.content })),
+            persona,
+            model: selectedModel,
+            language: isTamil ? 'Tamil' : 'English',
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Chat request failed');
+        }
+
+        const botMsg: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: data.reply,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           persona,
-          model: selectedModel,
-          language: isTamil ? 'Tamil' : 'English',
-        }),
-      });
+        };
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Chat request failed');
+        setMessages((prev) => [...prev, botMsg]);
       }
-
-      const botMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: data.reply,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        persona,
-      };
-
-      setMessages((prev) => [...prev, botMsg]);
     } catch (err: any) {
       const errorMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -351,10 +443,10 @@ How can I empower your workflow today?
         </div>
 
         {/* Persona Selectors */}
-        <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800/80 text-xs">
+        <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800/80 text-xs overflow-x-auto">
           <button
             onClick={() => setPersona('general')}
-            className={`px-2.5 py-1 rounded-lg transition-all ${
+            className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 shrink-0 ${
               persona === 'general' ? 'bg-amber-500 text-slate-950 font-bold shadow' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -362,7 +454,7 @@ How can I empower your workflow today?
           </button>
           <button
             onClick={() => setPersona('coder')}
-            className={`px-2.5 py-1 rounded-lg transition-all ${
+            className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 shrink-0 ${
               persona === 'coder' ? 'bg-amber-500 text-slate-950 font-bold shadow' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -370,11 +462,20 @@ How can I empower your workflow today?
           </button>
           <button
             onClick={() => setPersona('analyst')}
-            className={`px-2.5 py-1 rounded-lg transition-all ${
+            className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 shrink-0 ${
               persona === 'analyst' ? 'bg-amber-500 text-slate-950 font-bold shadow' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             Analyst
+          </button>
+          <button
+            onClick={() => setPersona('image')}
+            className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 shrink-0 ${
+              persona === 'image' ? 'bg-rose-500 text-slate-950 font-black shadow' : 'text-slate-400 hover:text-rose-300'
+            }`}
+          >
+            <ImageIcon className="w-3.5 h-3.5" />
+            <span>Image Gen</span>
           </button>
         </div>
 
@@ -486,10 +587,59 @@ How can I empower your workflow today?
                     <span>{msg.timestamp}</span>
                   </div>
 
+                  {/* User Uploaded Image Preview */}
+                  {msg.userImage && (
+                    <div className="mt-2 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 max-w-xs shadow-md">
+                      <img
+                        src={msg.userImage}
+                        alt="Uploaded preview"
+                        className="w-full h-auto object-cover max-h-56 cursor-pointer hover:opacity-95 transition-opacity"
+                        onClick={() => setPreviewModalImage(msg.userImage || null)}
+                      />
+                    </div>
+                  )}
+
                   {/* Body Content */}
                   <div className="whitespace-pre-wrap font-sans text-slate-200 space-y-2">
                     {msg.content}
                   </div>
+
+                  {/* AI Generated Image Card */}
+                  {msg.imageUrl && (
+                    <div className="mt-3 bg-slate-950/90 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl p-2 max-w-md group/img">
+                      <div className="relative overflow-hidden rounded-xl">
+                        <img
+                          src={msg.imageUrl}
+                          alt="AI Generated Result"
+                          className="w-full h-auto object-contain max-h-80 bg-slate-900 cursor-pointer hover:scale-102 transition-transform duration-300"
+                          onClick={() => setPreviewModalImage(msg.imageUrl || null)}
+                        />
+                        <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                          <button
+                            onClick={() => setPreviewModalImage(msg.imageUrl || null)}
+                            className="p-2 bg-slate-900/90 hover:bg-amber-500 hover:text-slate-950 text-white rounded-xl shadow border border-slate-700 font-bold flex items-center gap-1.5 text-xs transition-colors"
+                          >
+                            <Eye className="w-4 h-4" />
+                            <span>{isTamil ? 'பெரிதாக்கு' : 'Zoom'}</span>
+                          </button>
+                          <a
+                            href={msg.imageUrl}
+                            download={`swatea-ai-image-${Date.now()}.png`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 bg-slate-900/90 hover:bg-rose-500 hover:text-white text-white rounded-xl shadow border border-slate-700 font-bold flex items-center gap-1.5 text-xs transition-colors"
+                          >
+                            <Download className="w-4 h-4" />
+                            <span>{isTamil ? 'பதிவிறக்கு' : 'Download'}</span>
+                          </a>
+                        </div>
+                      </div>
+                      <div className="mt-2 px-2 py-1 flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                        <span className="text-amber-400 font-bold">✨ Swatea AI Canvas</span>
+                        <span className="text-slate-500">1024x1024 / SVG</span>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Copy & Speak buttons */}
                   {!isUser && (
@@ -563,7 +713,7 @@ How can I empower your workflow today?
               ref={fileInputRef}
               onChange={handleFileUpload}
               className="hidden"
-              accept=".txt,.js,.ts,.json,.md,.py,.doc,.csv"
+              accept=".txt,.js,.ts,.json,.md,.py,.doc,.csv,image/*"
             />
 
             {/* Input Field */}
@@ -643,6 +793,50 @@ How can I empower your workflow today?
           </div>
         </div>
       </div>
+
+      {/* Fullscreen Image Preview Modal */}
+      {previewModalImage && (
+        <div
+          className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex flex-col items-center justify-center p-4"
+          onClick={() => setPreviewModalImage(null)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh] bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden p-2 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-2 border-b border-slate-800">
+              <span className="text-xs font-mono font-bold text-amber-400">
+                {isTamil ? '🎨 ஸ்வாதியா ஏஐ கேன்வாஸ் (HD View)' : '🎨 Swatea AI HD Image Viewer'}
+              </span>
+              <div className="flex items-center gap-2">
+                <a
+                  href={previewModalImage}
+                  download={`swatea-ai-image-${Date.now()}.png`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1 bg-rose-500 hover:bg-rose-400 text-white font-bold rounded-lg text-xs flex items-center gap-1"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>{isTamil ? 'பதிவிறக்கு' : 'Download'}</span>
+                </a>
+                <button
+                  onClick={() => setPreviewModalImage(null)}
+                  className="p-1 text-slate-400 hover:text-white bg-slate-800 rounded-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            <div className="p-2 flex items-center justify-center bg-slate-950 max-h-[80vh] overflow-auto">
+              <img
+                src={previewModalImage}
+                alt="Enlarged view"
+                className="max-w-full max-h-[75vh] object-contain rounded-xl"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
