@@ -8,6 +8,7 @@ import { DocumentModule } from './components/DocumentModule';
 import { VisionModule } from './components/VisionModule';
 import { VoiceModule } from './components/VoiceModule';
 import { WorkflowModule } from './components/WorkflowModule';
+import { WorkspaceModule } from './components/WorkspaceModule';
 import { AdminModule } from './components/AdminModule';
 import { FooterBar } from './components/FooterBar';
 import { LoginView } from './components/LoginView';
@@ -48,6 +49,8 @@ export default function App() {
         return language === 'ta' ? 'AI சாட் ஹப் (Chat Hub)' : 'AI Chat Hub';
       case 'search':
         return language === 'ta' ? 'AI தேடல் எஞ்சின் (Deep Search)' : 'AI Deep Search Engine';
+      case 'workspace':
+        return language === 'ta' ? 'கூகுள் வொர்க்ஸ்பேஸ் AI (Google Workspace)' : 'Google Workspace AI Hub';
       case 'code':
         return language === 'ta' ? 'AI கோடிங் ஸ்டுடியோ (Coding Studio)' : 'AI Code Studio';
       case 'document':
@@ -102,6 +105,7 @@ export default function App() {
             <ChatModule language={language} currentUserEmail={currentUserEmail} />
           )}
           {activeModule === 'search' && <SearchModule language={language} />}
+          {activeModule === 'workspace' && <WorkspaceModule language={language} />}
           {activeModule === 'code' && <CodeModule language={language} />}
           {activeModule === 'document' && <DocumentModule language={language} />}
           {activeModule === 'vision' && <VisionModule language={language} />}

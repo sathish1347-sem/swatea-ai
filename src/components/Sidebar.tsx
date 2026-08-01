@@ -7,6 +7,7 @@ import {
   Eye,
   Mic,
   Workflow,
+  FolderGit2,
   ShieldCheck,
   Zap,
   Sparkles,
@@ -40,6 +41,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: isTamil ? 'AI தேடல் எஞ்சின்' : 'AI Deep Search',
       subtitle: isTamil ? 'கூகுள் தகவல்களுடன் தேடல்' : 'Google Grounded Search',
       icon: Search,
+    },
+    {
+      id: 'workspace',
+      title: isTamil ? 'கூகுள் வொர்க்ஸ்பேஸ்' : 'Google Workspace',
+      subtitle: isTamil ? 'டிரைவ், ஜிமெயில் & சாட்' : 'Drive, Gmail & Google Chat',
+      icon: FolderGit2,
+      badge: 'NEW',
     },
     {
       id: 'code',

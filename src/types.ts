@@ -6,6 +6,7 @@ export type ModuleType =
   | 'vision'
   | 'voice'
   | 'workflow'
+  | 'workspace'
   | 'admin';
 
 export type LanguageCode = 'ta' | 'en' | 'es' | 'ja' | 'de';
